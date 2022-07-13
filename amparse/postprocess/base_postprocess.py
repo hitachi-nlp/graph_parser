@@ -34,12 +34,14 @@ class DefaultPostProcess(BasePostProcess):
         arc[np.eye(len(arc)).astype(np.bool)] = -1000.
         links = list(zip(*np.nonzero(arc >= 0.5)))
         rel = copy.deepcopy(pred_data['rel'])
+        rel[:, :, edge_vocab.token2id(P.TOP)] = -1000.
 
         edges = []
         for frm, to in links:
             frm, to = int(frm), int(to)
             rel_id = np.argmax(rel[frm, to])
             rel_label = edge_vocab.id2token(rel_id)
+            assert rel_label != P.TOP
             edges.append({
                 'source': frm,
                 'target': to,

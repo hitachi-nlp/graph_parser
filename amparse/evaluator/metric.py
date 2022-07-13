@@ -212,7 +212,7 @@ class AMMetric:
             util.dump_jsonl(fpath=gold_path, jsonl=[d['mrp'] for d in self._golds if d['mrp']['framework'] == fw])
             subproc = subprocess.run(
                 shlex.split(
-                    f'python {scorer.__file__} -system {system_path} -gold {gold_path}'
+                    f'python {scorer.__file__} -system {system_path} -gold {gold_path} --space 1'
                 ),
                 encoding='utf-8',
                 stdout=subprocess.PIPE

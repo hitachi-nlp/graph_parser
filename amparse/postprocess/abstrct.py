@@ -29,6 +29,7 @@ class AbstrctPostProcess(BasePostProcess):
         head, rev_links = util.decode_mst(arc.T)
         links = [(to, frm) for frm, to in rev_links]
         rel = copy.deepcopy(pred_data['rel'])
+        rel[:, :, edge_vocab.token2id(P.TOP)] = -1000.
 
         tops = []
         edges = []
@@ -39,6 +40,7 @@ class AbstrctPostProcess(BasePostProcess):
             else:
                 rel_id = np.argmax(rel[frm, to])
                 rel_label = edge_vocab.id2token(rel_id)
+                assert rel_label != P.TOP
                 edges.append({
                     'source': frm,
                     'target': to,

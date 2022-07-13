@@ -516,23 +516,41 @@ def anchor_span(spans: List[Tuple], span: List or Tuple, ignore_span: Optional[T
     token_indices : Tuple[int, int]
         The indices (start, end) for the token spans
     """
-    start, stop = span[0], span[1]
-    if ignore_span is None:
-        ignore_span = (-99999, -99999)
-    i_start = [i for i, s in enumerate(spans) if start == s[0] and s != ignore_span]
-    i_stop = [i for i, s in enumerate(spans) if stop == s[1] and s != ignore_span]
-    if i_start and i_stop:
-        return i_start[0], i_stop[0] + 1
+    s_span = set(range(*span))
 
-    anc = [i for i, s in enumerate(spans) if (start <= s[0] < s[1] <= stop) and s != ignore_span]
-    if not anc:
-        anc = [i for i, s in enumerate(spans) if (s[0] <= start < stop <= s[1]) and s != ignore_span]
-    if not anc:
-        anc = [i for i, s in enumerate(spans) if (s[0] <= start < s[1] or s[0] < stop <= s[1]) and s != ignore_span]
-    if not anc:
-        return None
-    assert len(anc) >= 1
-    return anc[0], anc[-1] + 1
+    indices = []
+    for i, s in enumerate(spans):
+        if s == ignore_span:
+            continue
+        if s[0] > s[1]:
+            continue
+
+        if s[0] == s[1]:
+            s_token = set(range(s[0] - 1, s[0]))
+        else:
+            s_token = set(range(*s))
+
+        if (s_span & s_token) == s_token:
+            indices.append(i)
+
+    if not indices:
+        for i, s in enumerate(spans):
+            if s == ignore_span:
+                continue
+            if s[0] > s[1]:
+                continue
+
+            if s[0] == s[1]:
+                s_token = set(range(s[0] - 1, s[0]))
+            else:
+                s_token = set(range(*s))
+
+            if s_span & s_token:
+                indices.append(i)
+
+    assert indices, f'{span} could not be aligned for {spans}'
+
+    return min(indices), max(indices) + 1
 
 
 def modify_bio_sequence(bio_sequence: List[str]) -> List[str]:
