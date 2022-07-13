@@ -1,0 +1,48 @@
+#!/bin/bash
+# Copyright 2022 by Hitachi, Ltd.
+# All rights reserved.
+
+export LANG=en_US.UTF8
+set -eu
+
+#export CUBLAS_WORKSPACE_CONFIG=:4096:8
+export TRANSFORMERS_CACHE=./.cache/transformers
+
+PLM_TYPE=$(python -c "print('t5' if 't5' in '${PLM}' else 'others')")
+if [ "${PLM_TYPE}" = "t5" ]; then
+  SRC_PREFIX='--source_prefix "summarize:" '
+else
+  SRC_PREFIX=""
+fi
+
+LOG_DIR=./log/semeval2022task10/seq2seq_crosslingual_zeroshot/${SEED}
+
+for TGT_CORPUS in opener_es multibooked_ca multibooked_eu
+do
+  for SPLIT in dev test
+  do
+      mkdir -p ${LOG_DIR}/${TGT_CORPUS}_${SPLIT}
+      if [ -e ${LOG_DIR}/${TGT_CORPUS}_${SPLIT}/eval.txt ]; then
+        continue
+      fi
+      python ./examples/semeval2022task10/seq2seq_parser/seq2seq_summarize.py \
+        --model_name_or_path ${PLM} \
+        --do_predict \
+        --train_file data/input/${TGT_CORPUS}_train.ssal.json \
+        --test_file data/input/${TGT_CORPUS}_${SPLIT}.ssal.json ${SRC_PREFIX} \
+        --summary_column dump_t5 \
+        --text_column text \
+        --output_dir ${LOG_DIR}/${TGT_CORPUS}_${SPLIT} \
+        --per_device_eval_batch_size 8 \
+        --predict_with_generate \
+        --skip_special_tokens false \
+        --overwrite_cache true \
+        --num_beams 5
+      python ./examples/semeval2022task10/seq2seq_parser/ssa_reconstruct.py \
+          ${LOG_DIR}/${TGT_CORPUS}_${SPLIT}/generated_predictions.txt \
+          data/input/${TGT_CORPUS}_${SPLIT}.ssal.json | tee ${LOG_DIR}/${TGT_CORPUS}_${SPLIT}/predictions.json
+      python data/orig/semeval22_structured_sentiment/evaluation/evaluate_single_dataset.py \
+          data/orig/semeval22_structured_sentiment/data/${TGT_CORPUS}/${SPLIT}.json \
+          ${LOG_DIR}/${TGT_CORPUS}_${SPLIT}/predictions.json > ${LOG_DIR}/${TGT_CORPUS}_${SPLIT}/eval.txt
+    done
+done

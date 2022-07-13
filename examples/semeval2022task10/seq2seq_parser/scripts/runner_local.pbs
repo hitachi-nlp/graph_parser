@@ -1,0 +1,117 @@
+#!/bin/bash
+# Copyright 2022 by Hitachi, Ltd.
+# All rights reserved.
+
+export LANG=en_US.UTF8
+set -eu
+
+#export CUBLAS_WORKSPACE_CONFIG=:4096:8
+export TRANSFORMERS_CACHE=./.cache/transformers
+
+PLM_ESC=$(python -c "print('${PLM}'.replace('/', '-'))")
+PLM_TYPE=$(python -c "print('t5' if 't5' in '${PLM}' else 'others')")
+if [ "${PLM_TYPE}" = "t5" ]; then
+  SRC_PREFIX='--source_prefix "summarize:" '
+else
+  SRC_PREFIX=""
+fi
+
+LOG_DIR=./log/semeval2022task10/seq2seq_monolingual/${CORPUS}-${PLM_ESC}-${SEED}
+mkdir -p ${LOG_DIR}
+
+if [ ! -e ${LOG_DIR}/pytorch_model.bin ]; then
+  python ./examples/semeval2022task10/seq2seq_parser/seq2seq_summarize.py \
+    --model_name_or_path "${PLM}" \
+    --do_train \
+    --do_eval \
+    --do_predict \
+    --train_file data/input/${CORPUS}_train.ssal.json \
+    --validation_file data/input/${CORPUS}_dev.ssal.json \
+    --test_file data/input/${CORPUS}_dev.ssal.json ${SRC_PREFIX} \
+    --summary_column dump_t5 \
+    --text_column text \
+    --output_dir ${LOG_DIR} \
+    --logging_dir ${LOG_DIR}/logging \
+    --per_device_train_batch_size 4 \
+    --per_device_eval_batch_size 4 \
+    --gradient_accumulation_steps 4 \
+    --overwrite_output_dir \
+    --predict_with_generate \
+    --num_train_epochs 100 \
+    --warmup_ratio 0.1 \
+    --max_steps 10000 \
+    --learning_rate 5e-5 \
+    --evaluation_strategy steps \
+    --eval_steps 1000 \
+    --save_steps 1000 \
+    --logging_steps 10 \
+    --max_source_length 128 \
+    --max_target_length 128 \
+    --group_by_length true \
+    --save_total_limit 1 \
+    --skip_special_tokens false \
+    --overwrite_cache true \
+    --num_beams 5 \
+    --seed $SEED \
+    --metric_for_best_model f \
+    --additional_special_tokens "<extra_id_0>,<extra_id_1>,<extra_id_2>,<extra_id_3>,<extra_id_4>,<extra_id_5>,<extra_id_6>,<extra_id_7>,<extra_id_8>,<extra_id_9>"
+fi
+
+if [ "${CORPUS}" != "opener_en_mpqa_darmstadt_unis" ]; then
+  for SPLIT in dev test
+  do
+      mkdir -p ${LOG_DIR}/${SPLIT}
+      if [ -e ${LOG_DIR}/${SPLIT}/eval.txt ]; then
+        continue
+      fi
+      python ./examples/semeval2022task10/seq2seq_parser/seq2seq_summarize.py \
+        --model_name_or_path ${LOG_DIR} \
+        --do_predict \
+        --train_file data/input/${CORPUS}_train.ssal.json \
+        --test_file data/input/${CORPUS}_${SPLIT}.ssal.json ${SRC_PREFIX} \
+        --summary_column dump_t5 \
+        --text_column text \
+        --output_dir ${LOG_DIR}/${SPLIT} \
+        --per_device_eval_batch_size 8 \
+        --predict_with_generate \
+        --skip_special_tokens false \
+        --overwrite_cache true \
+        --num_beams 5
+      python ./examples/semeval2022task10/seq2seq_parser/ssa_reconstruct.py \
+          ${LOG_DIR}/${SPLIT}/generated_predictions.txt \
+          data/input/${CORPUS}_${SPLIT}.ssal.json | tee ${LOG_DIR}/${SPLIT}/predictions.json
+      python data/orig/semeval22_structured_sentiment/evaluation/evaluate_single_dataset.py \
+          data/orig/semeval22_structured_sentiment/data/${CORPUS}/${SPLIT}.json \
+          ${LOG_DIR}/${SPLIT}/predictions.json > ${LOG_DIR}/${SPLIT}/eval.txt
+  done
+else
+  for TGT_CORPUS in opener_en darmstadt_unis mpqa
+  do
+    for SPLIT in dev test
+    do
+        mkdir -p ${LOG_DIR}/${TGT_CORPUS}_${SPLIT}
+        if [ -e ${LOG_DIR}/${TGT_CORPUS}_${SPLIT}/eval.txt ]; then
+          continue
+        fi
+        python ./examples/semeval2022task10/seq2seq_parser/seq2seq_summarize.py \
+          --model_name_or_path ${LOG_DIR} \
+          --do_predict \
+          --train_file data/input/${TGT_CORPUS}_train.ssal.json \
+          --test_file data/input/${TGT_CORPUS}_${SPLIT}.ssal.json ${SRC_PREFIX} \
+          --summary_column dump_t5 \
+          --text_column text \
+          --output_dir ${LOG_DIR}/${TGT_CORPUS}_${SPLIT} \
+          --per_device_eval_batch_size 8 \
+          --predict_with_generate \
+          --skip_special_tokens false \
+          --overwrite_cache true \
+          --num_beams 5
+        python ./examples/semeval2022task10/seq2seq_parser/ssa_reconstruct.py \
+            ${LOG_DIR}/${TGT_CORPUS}_${SPLIT}/generated_predictions.txt \
+            data/input/${TGT_CORPUS}_${SPLIT}.ssal.json | tee ${LOG_DIR}/${TGT_CORPUS}_${SPLIT}/predictions.json
+        python data/orig/semeval22_structured_sentiment/evaluation/evaluate_single_dataset.py \
+            data/orig/semeval22_structured_sentiment/data/${TGT_CORPUS}/${SPLIT}.json \
+            ${LOG_DIR}/${TGT_CORPUS}_${SPLIT}/predictions.json > ${LOG_DIR}/${TGT_CORPUS}_${SPLIT}/eval.txt
+      done
+  done
+fi

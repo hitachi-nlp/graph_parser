@@ -1,0 +1,6 @@
+simalign==0.3
+nltk==3.6.5
+datasets==1.18.2
+absl-py==1.0.0
+rouge_score==0.0.4
+huggingface_hub==0.4.0

@@ -1,0 +1,12 @@
+#!/bin/bash
+# Copyright 2022 by Hitachi, Ltd.
+# All rights reserved.
+
+export LANG=en_US.UTF8
+set -eu
+
+export CUBLAS_WORKSPACE_CONFIG=:4096:8
+export TRANSFORMERS_CACHE=./.cache/transformers
+
+${SCRIPT}
+
