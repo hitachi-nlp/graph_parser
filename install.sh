@@ -14,8 +14,5 @@ if [ ! -e amparse/common/chu_liu_edmonds.py ]; then
   sed -i'' -e 's/from allennlp.common.checks import ConfigurationError//g' amparse/common/chu_liu_edmonds.py
 fi
 
-# https://github.com/pypa/pip/issues/2195
-pip install wheel
-python setup.py bdist_wheel
-pip install dist/*.whl
+pip install -r requirements.txt
 
