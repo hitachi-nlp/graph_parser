@@ -3,8 +3,6 @@
 
 set -eu
 
-./install.sh
-
 if [ ! -e utils/converter/argmicro/emnlp2015 ]; then
   git clone https://github.com/kuribayashi4/span_based_argumentation_parser.git
   mkdir -p utils/converter/argmicro/
@@ -14,4 +12,5 @@ fi
 
 # Install packages
 pip install pip==20.2
-pip install torch==1.5.1 transformers==4.5.1 protobuf==3.16.0
+pip install -r examples/multitask_am/requirements.txt
+
