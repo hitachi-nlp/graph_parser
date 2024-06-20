@@ -4,6 +4,8 @@
 set -eu
 
 pip install pip==20.2
+pip install Cython==0.29.37
+pip install numpy==1.19.0 --no-build-isolation
 
 mkdir -p data/
 mkdir -p log/
