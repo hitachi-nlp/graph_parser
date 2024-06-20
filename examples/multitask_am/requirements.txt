@@ -1,5 +1,5 @@
 packaging==21.0
-numpy==1.19.0
+#numpy==1.19.0
 scipy==1.5.1
 setuptools==59.5.0
 typer==0.4.0
