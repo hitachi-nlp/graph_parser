@@ -3,6 +3,12 @@
 
 set -eu
 
+if [ ! -e amparse/common/chu_liu_edmonds.py ]; then
+  wget https://raw.githubusercontent.com/allenai/allennlp/a558f7f4982d6a996d5397c7ff7a500cb0251577/allennlp/nn/chu_liu_edmonds.py
+  mv chu_liu_edmonds.py amparse/common
+  sed -i'' -e 's/from allennlp.common.checks import ConfigurationError//g' amparse/common/chu_liu_edmonds.py
+fi
+
 if [ ! -e utils/converter/argmicro/emnlp2015 ]; then
   git clone https://github.com/kuribayashi4/span_based_argumentation_parser.git
   mkdir -p utils/converter/argmicro/
